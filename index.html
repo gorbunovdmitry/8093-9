@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Умный поиск</title>
+
+<!-- Google tag (gtag.js) — GA4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-VNG605KE2R"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-VNG605KE2R');
+</script>
+
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+   m[i].l=1*new Date();
+   for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+   k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+   ym(96171108, "init", {clickmap:true, trackLinks:true, accurateTrackBounce:true, webvisor:false});
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/96171108" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->
+
+<style>
+  :root{
+    --bg:#ffffff;
+    --text:#212124;
+    --muted:#a0a1a9;
+    --bubble-border:#edeef0;
+    --green:#0cc44d;
+    --red:#ef3124;
+    --user-bubble:#f2f3f5;
+    --bar-border:#f0f0f2;
+    --field-border:#e7e7e9;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; height:100%;}
+  body{
+    font-family:var(--font);
+    color:var(--text);
+    background:var(--bg);
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overscroll-behavior:none;
+  }
+  /* App shell — centered on desktop, full-bleed on mobile */
+  .app{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    width:100%;
+    max-width:480px;
+    margin:0 auto;
+    height:100dvh;
+    background:var(--bg);
+    overflow:hidden;
+  }
+
+  /* ---------- Header ---------- */
+  .header{
+    position:relative;
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding-top:calc(env(safe-area-inset-top) + 6px);
+    padding-bottom:10px;
+    background:var(--bg);
+  }
+  .header .back{
+    position:absolute;
+    left:8px;
+    bottom:6px;
+    width:40px;height:40px;
+    display:flex;align-items:center;justify-content:center;
+    border:0;background:transparent;cursor:pointer;
+    color:var(--text);
+  }
+  .header .center{ text-align:center; line-height:1.15; }
+  .header .title{ font-size:17px; font-weight:600; letter-spacing:-0.1px; }
+  .header .subtitle{
+    display:flex; align-items:center; justify-content:center; gap:3px;
+    margin-top:2px; font-size:13px; color:var(--muted);
+  }
+  .header .subtitle svg{ display:block; }
+
+  /* ---------- Messages ---------- */
+  .messages{
+    flex:1 1 auto;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    padding:8px 0 12px;
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-end;   /* pin content to bottom like the real chat */
+    min-height:0;
+  }
+  .messages-inner{ display:flex; flex-direction:column; gap:6px; }
+
+  .day{
+    text-align:center;
+    color:var(--muted);
+    font-size:14px;
+    margin:6px 0 10px;
+  }
+
+  .row{
+    display:flex;
+    align-items:flex-end;
+    gap:8px;
+    padding:0 12px;
+  }
+  .row.assistant{ justify-content:flex-start; }
+  .row.user{ justify-content:flex-end; }
+
+  .avatar-col{ flex:0 0 44px; width:44px; }
+  .avatar{
+    width:44px;height:44px;border-radius:50%;
+    background:#fbe8e7;
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+  }
+  .avatar.hidden{ visibility:hidden; }
+
+  .col{ display:flex; flex-direction:column; gap:8px; max-width:78%; min-width:0; }
+  .sender{ color:var(--muted); font-size:15px; margin:2px 0 2px 4px; }
+
+  .bubble{
+    background:var(--bg);
+    border:1px solid var(--bubble-border);
+    border-radius:18px;
+    padding:13px 16px;
+    font-size:16px;
+    line-height:1.4;
+    color:var(--text);
+    white-space:pre-wrap;
+    word-wrap:break-word;
+    max-width:100%;
+    animation:pop .18s ease-out;
+  }
+  .row.user .bubble{
+    background:var(--user-bubble);
+    border-color:var(--user-bubble);
+  }
+  @keyframes pop{ from{opacity:0; transform:translateY(6px) scale(.98);} to{opacity:1; transform:none;} }
+
+  /* typing indicator */
+  .typing{ display:flex; align-items:center; gap:5px; padding:16px; }
+  .typing span{
+    width:8px;height:8px;border-radius:50%;
+    background:#c3c4c9;
+    animation:blink 1.3s infinite ease-in-out;
+  }
+  .typing span:nth-child(2){ animation-delay:.18s; }
+  .typing span:nth-child(3){ animation-delay:.36s; }
+  @keyframes blink{ 0%,80%,100%{opacity:.35; transform:translateY(0);} 40%{opacity:1; transform:translateY(-3px);} }
+
+  /* suggestion chips (оффер варианта) */
+  .chips-row{ padding:2px 12px 0 64px; }   /* 12 + 44 аватар + 8 gap = выравнивание с пузырями */
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; animation:pop .18s ease-out; }
+  .chip{
+    border:1px solid #dcdee1;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font);
+    font-size:15px;
+    line-height:1.2;
+    padding:11px 16px;
+    border-radius:20px;
+    cursor:pointer;
+  }
+  .chip:active{ background:var(--user-bubble); }
+
+  /* ---------- Input bar ---------- */
+  .inputbar{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 12px calc(env(safe-area-inset-bottom) + 8px);
+    background:var(--bg);
+    border-top:1px solid var(--bar-border);
+  }
+  .field{
+    flex:1 1 auto;
+    display:flex;align-items:center;
+    background:var(--bg);
+    border:1px solid var(--field-border);
+    border-radius:22px;
+    padding:0 16px;
+    min-height:44px;
+  }
+  .field input{
+    width:100%;
+    border:0;outline:0;background:transparent;
+    font-family:var(--font);
+    font-size:16px;
+    color:var(--text);
+    padding:11px 0;
+  }
+  .field input::placeholder{ color:var(--muted); opacity:1; }
+  .send{
+    flex:0 0 auto;
+    width:44px;height:44px;border-radius:50%;
+    border:0; cursor:pointer;
+    background:var(--red);
+    display:flex;align-items:center;justify-content:center;
+    transform:scale(0);
+    transition:transform .14s ease-out;
+  }
+  .send.visible{ transform:scale(1); }
+  .send:active{ filter:brightness(.92); }
+
+  /* ---------- Stub / error screen ---------- */
+  .stub{
+    position:absolute; inset:0;
+    background:var(--bg);
+    display:none;
+    flex-direction:column;
+    padding:calc(env(safe-area-inset-top) + 8px) 24px calc(env(safe-area-inset-bottom) + 20px);
+  }
+  body.show-stub .app > .header,
+  body.show-stub .app > .messages,
+  body.show-stub .app > .inputbar{ display:none; }
+  body.show-stub .stub{ display:flex; }
+
+  .stub .stub-head{ flex:0 0 auto; height:44px; }
+  .stub .stub-body{
+    flex:1 1 auto;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    text-align:center;
+    gap:14px;
+    padding-bottom:40px;
+  }
+  .stub .icon{ margin-bottom:6px; }
+  .stub h1{ font-size:22px; font-weight:600; margin:0; letter-spacing:-0.2px; }
+  .stub p{ font-size:16px; line-height:1.4; color:var(--muted); margin:0; max-width:300px; }
+  .stub .retry{
+    margin-top:10px;
+    border:0;cursor:pointer;
+    background:var(--red);color:#fff;
+    font-family:var(--font);font-size:17px;font-weight:500;
+    padding:15px 28px;border-radius:14px;
+    min-width:200px;
+  }
+  .stub .retry:active{ filter:brightness(.92); }
+
+  .spinner{
+    width:34px;height:34px;border-radius:50%;
+    border:3px solid #eee;border-top-color:var(--red);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{ to{transform:rotate(360deg);} }
+</style>
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <button class="back" id="backBtn" aria-label="Назад">
+        <svg width="12" height="20" viewBox="0 0 12 20" fill="none">
+          <path d="M10 2 L2 10 L10 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="center">
+        <div class="title">Умный поиск</div>
+        <div class="subtitle">
+          <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M13 2 L4 13 h6 l-1 9 9-13 h-6 l1-7 z" fill="#0cc44d"/>
+          </svg>
+          <span>На связи</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Messages -->
+    <main class="messages" id="messages">
+      <div class="messages-inner" id="thread"></div>
+    </main>
+
+    <!-- Input bar -->
+    <form class="inputbar" id="form" autocomplete="off">
+      <div class="field">
+        <input id="input" type="text" inputmode="text" placeholder="Сообщение" enterkeyhint="send" aria-label="Сообщение">
+      </div>
+      <button class="send" id="send" type="submit" aria-label="Отправить">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M4 11.5 L20 4 L12.5 20 L10.8 13.2 L4 11.5 Z" fill="#fff"/>
+        </svg>
+      </button>
+    </form>
+
+    <!-- Stub / error screen -->
+    <section class="stub" id="stub" aria-hidden="true">
+      <div class="stub-head"></div>
+      <div class="stub-body" id="stubBody">
+        <div class="icon">
+          <svg width="96" height="96" viewBox="0 0 96 96" fill="none">
+            <circle cx="48" cy="48" r="48" fill="#f2f3f5"/>
+            <path d="M48 28 v26" stroke="#ef3124" stroke-width="6" stroke-linecap="round"/>
+            <circle cx="48" cy="66" r="4.2" fill="#ef3124"/>
+          </svg>
+        </div>
+        <h1>Что-то пошло не так</h1>
+        <p>Не удалось загрузить ответ. Попробуйте позже.</p>
+        <button class="retry" id="retryBtn" type="button">Повторить</button>
+      </div>
+    </section>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ====== КОНФИГ ЭКСПЕРИМЕНТА ======
+  // Две строки ниже заменяет build.py при генерации вариантов — не убирайте маркеры BUILD:.
+  // offer=null и chipYes=null → контрольный экран (как оригинальный скриншот, без оффера).
+  var CONFIG = {"id": "tone-simple", "num": 9, "offer": "Могу объяснить, что происходит с вашими деньгами, — без банковских терминов и сложных таблиц. Просто, по-человечески, как друг, который разбирается в финансах. Рассказать?", "chipYes": "Объяснить простыми словами", "chipNo": "Не сейчас"}; // BUILD:CONFIG
+  var WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwmLf0P6jeLkL2ZPJcEKncWAbrREUHqTmY7Gaw3jJiFNg8Ry6lpkzdMfBYJppT9Bu0/exec"; // BUILD:WEBHOOK
+
+  var VAR = CONFIG.num;   // номер варианта (1..16), соответствует репозиторию 8093-<VAR>
+
+  // ====== аналитика: GA4 (gtag) + Яндекс.Метрика ======
+  var YM_ID = 96171108;
+  function track(name){
+    try{ if(typeof window.gtag === 'function') window.gtag('event', name); }catch(e){}
+    try{ if(typeof window.ym   === 'function') window.ym(YM_ID, 'reachGoal', name); }catch(e){}
+  }
+  function ev(base){ return '8093_' + base + '_var' + VAR; }             // click_continue → 8093_click_continue_var3
+  function evEnd(outcome){ return '8093_end_page_view_var' + VAR + '_' + outcome; }
+
+  // ====== helpers ======
+  var thread   = document.getElementById('thread');
+  var messages = document.getElementById('messages');
+  var input    = document.getElementById('input');
+  var sendBtn  = document.getElementById('send');
+  var form     = document.getElementById('form');
+
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  function scrollDown(){ messages.scrollTop = messages.scrollHeight; }
+  function el(tag, cls, html){
+    var e = document.createElement(tag);
+    if(cls) e.className = cls;
+    if(html != null) e.innerHTML = html;
+    return e;
+  }
+
+  // ====== сохранение ОДНОЙ строки ответа в Google-таблицу ======
+  // answered — общая защита от дублей: один ответ, одна строка, одно финальное событие.
+  var answered = false;
+  function saveAnswer(answer){
+    try{
+      if(!WEBHOOK_URL || WEBHOOK_URL.indexOf('PASTE_') === 0){
+        console.log('[experiment] var' + VAR + ' answer =', answer);
+        return;
+      }
+      var body = JSON.stringify({ variant: VAR, answer: answer });
+      // no-cors + text/plain -> без preflight; ответ не читаем, запись в таблицу всё равно идёт
+      fetch(WEBHOOK_URL, {
+        method:'POST', mode:'no-cors',
+        headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+        body: body, keepalive: true
+      }).catch(function(err){ console.log('[experiment] send error', err); });
+    }catch(err){ console.log('[experiment] save error', err); }
+  }
+
+  // Сообщения ассистента группируются в "ряды" (аватар + колонка пузырей).
+  var assistantRow = null, assistantCol = null, avatar = null, firstAssistantGroup = true;
+  function ensureAssistantRow(){
+    if(assistantRow) return;
+    assistantRow = el('div','row assistant');
+    var avCol = el('div','avatar-col');
+    avatar = el('div','avatar hidden',
+      '<svg width="26" height="26" viewBox="0 0 24 24">' +
+      '<defs><linearGradient id="spk" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="#fb554b"/><stop offset="1" stop-color="#de180b"/>' +
+      '</linearGradient></defs>' +
+      '<path d="M12 2 C12 7 17 12 22 12 C17 12 12 17 12 22 C12 17 7 12 2 12 C7 12 12 7 12 2 Z" fill="url(#spk)"/>' +
+      '</svg>');
+    avCol.appendChild(avatar);
+    assistantCol = el('div','col');
+    if(firstAssistantGroup){
+      assistantCol.appendChild(el('div','sender','Умный поиск'));
+      firstAssistantGroup = false;
+    }
+    assistantRow.appendChild(avCol);
+    assistantRow.appendChild(assistantCol);
+    thread.appendChild(assistantRow);
+  }
+  function closeAssistantGroup(){ assistantRow = null; assistantCol = null; avatar = null; }
+
+  var typingNode = null;
+  function showTyping(){
+    ensureAssistantRow();
+    if(typingNode) return;
+    typingNode = el('div','bubble typing','<span></span><span></span><span></span>');
+    assistantCol.appendChild(typingNode);
+    scrollDown();
+  }
+  function hideTyping(){ if(typingNode){ typingNode.remove(); typingNode = null; } }
+  function addAssistantBubble(text){
+    ensureAssistantRow();
+    var b = el('div','bubble');
+    b.textContent = text;
+    assistantCol.appendChild(b);
+    scrollDown();
+  }
+  function revealAvatar(){ if(avatar) avatar.classList.remove('hidden'); }
+
+  function addUserBubble(text){
+    var row = el('div','row user');
+    var col = el('div','col');
+    var b = el('div','bubble');
+    b.textContent = text;
+    col.appendChild(b);
+    row.appendChild(col);
+    thread.appendChild(row);
+    closeAssistantGroup();
+    scrollDown();
+  }
+
+  // ====== чипсы-саджесты (оффер варианта) ======
+  var chipsRow = null;
+  function showChips(){
+    if(!CONFIG.chipYes || chipsRow) return;
+    chipsRow = el('div','chips-row');
+    var chips = el('div','chips');
+
+    var yes = el('button','chip');
+    yes.type = 'button';
+    yes.textContent = CONFIG.chipYes;
+    yes.addEventListener('click', onChipYes);
+    chips.appendChild(yes);
+
+    if(CONFIG.chipNo){
+      var no = el('button','chip');
+      no.type = 'button';
+      no.textContent = CONFIG.chipNo;
+      no.addEventListener('click', onChipNo);
+      chips.appendChild(no);
+    }
+
+    chipsRow.appendChild(chips);
+    thread.appendChild(chipsRow);
+    scrollDown();
+  }
+  function removeChips(){ if(chipsRow){ chipsRow.remove(); chipsRow = null; } }
+
+  // Терминальные действия. answered ставится синхронно в самом начале → защита от дублей
+  // (повторные клики/сабмиты игнорируются: одно событие, одна строка).
+
+  // Целевое действие
+  async function onChipYes(){
+    if(answered) return; answered = true;
+    track(ev('click_continue'));
+    saveAnswer('да');
+    removeChips();
+    addUserBubble(CONFIG.chipYes);
+    await sleep(500); showTyping(); await sleep(1800); hideTyping();
+    goToStub('yes');
+  }
+
+  // Отказ «Не сейчас»
+  async function onChipNo(){
+    if(answered) return; answered = true;
+    track(ev('click_notnow'));
+    saveAnswer('нет');
+    removeChips();
+    addUserBubble(CONFIG.chipNo);
+    await sleep(500); showTyping(); await sleep(1800); hideTyping();
+    goToStub('no');
+  }
+
+  // Отправка своего сообщения
+  async function handleSend(){
+    var text = input.value.trim();
+    if(!text || answered) return; answered = true;
+    track(ev('click_send'));
+    saveAnswer(text);
+    removeChips();
+    addUserBubble(text);
+    input.value = '';
+    updateSendVisibility();
+    input.blur();
+    await sleep(500); showTyping(); await sleep(1800); hideTyping();
+    goToStub('yes');
+  }
+
+  // ====== финальный экран (заглушка) + блок "назад" ======
+  function trapBack(){
+    try{
+      history.pushState(null, '', location.href);
+      window.addEventListener('popstate', function(){ history.pushState(null, '', location.href); });
+    }catch(e){/* ignore */}
+  }
+
+  var stubBody = document.getElementById('stubBody');
+  var stubHTML = stubBody.innerHTML;
+  var stubShown = false;
+  function goToStub(outcome){
+    if(!stubShown){
+      stubShown = true;
+      track(evEnd(outcome));   // просмотр финальной страницы — только при первом рендере
+    }
+    document.body.classList.add('show-stub');
+    document.getElementById('stub').setAttribute('aria-hidden','false');
+    trapBack();
+    window.scrollTo(0,0);
+  }
+
+  // "Повторить" — имитация загрузки, затем снова ошибка (в чат не возвращает, событий не шлёт)
+  function bindRetry(){
+    var r = document.getElementById('retryBtn');
+    if(r) r.addEventListener('click', function(){
+      stubBody.innerHTML = '<div class="spinner"></div>';
+      setTimeout(function(){ stubBody.innerHTML = stubHTML; bindRetry(); }, 1500);
+    });
+  }
+  bindRetry();
+
+  // ====== intro ("сообщения только что пришли") ======
+  var MSG1 = "Привет! Это Умный поиск. Я здесь, чтобы ответить на вопросы об услугах и продуктах Альфа-Банка.";
+  var MSG2_DEFAULT = "Вот с чем ко мне часто обращаются:\nКогда выплатят проценты по вкладу?\nПодключить Alfa Pay\nВыбрать категории кэшбэка";
+  var MSG2 = CONFIG.offer || MSG2_DEFAULT;
+
+  async function playIntro(){
+    thread.appendChild(el('div','day','Сегодня'));
+    await sleep(600);
+    showTyping();
+    await sleep(1400);
+    hideTyping();
+    addAssistantBubble(MSG1);
+    await sleep(700);
+    showTyping();
+    await sleep(1400);
+    hideTyping();
+    addAssistantBubble(MSG2);
+    revealAvatar();
+    if(CONFIG.chipYes){ await sleep(400); showChips(); }
+    scrollDown();
+  }
+
+  // ====== ввод ======
+  function updateSendVisibility(){
+    if(input.value.trim().length > 0) sendBtn.classList.add('visible');
+    else sendBtn.classList.remove('visible');
+  }
+
+  // ====== wiring ======
+  input.addEventListener('input', updateSendVisibility);
+  form.addEventListener('submit', function(e){ e.preventDefault(); handleSend(); });
+  document.getElementById('backBtn').addEventListener('click', function(e){ e.preventDefault(); /* decorative */ });
+  input.addEventListener('focus', function(){ setTimeout(scrollDown, 250); });
+
+  trapBack();                              // блокируем "назад" на весь эксперимент
+  track('8093_page_view_landing_var' + VAR); // просмотр экрана предложения — при первом рендере
+  playIntro();
+})();
+</script>
+</body>
+</html>
