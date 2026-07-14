@@ -305,13 +305,13 @@
         <div class="icon">
           <svg width="96" height="96" viewBox="0 0 96 96" fill="none">
             <circle cx="48" cy="48" r="48" fill="#f2f3f5"/>
-            <path d="M48 28 v26" stroke="#ef3124" stroke-width="6" stroke-linecap="round"/>
-            <circle cx="48" cy="66" r="4.2" fill="#ef3124"/>
+            <path d="M33 30 H63 L48 48 Z" fill="#ef3124"/>
+            <path d="M33 66 H63 L48 48 Z" fill="#ef3124"/>
+            <path d="M31 30 H65 M31 66 H65" stroke="#ef3124" stroke-width="5" stroke-linecap="round"/>
           </svg>
         </div>
-        <h1>Что-то пошло не так</h1>
-        <p>Не удалось загрузить ответ. Попробуйте позже.</p>
-        <button class="retry" id="retryBtn" type="button">Повторить</button>
+        <h1>Сервис ещё в работе</h1>
+        <p>Мы выбираем лучшие условия, чтобы вам точно понравилось. С нетерпением ждём, когда всё заработает, чтобы показать вам</p>
       </div>
     </section>
   </div>
@@ -502,29 +502,36 @@
     }catch(e){/* ignore */}
   }
 
-  var stubBody = document.getElementById('stubBody');
-  var stubHTML = stubBody.innerHTML;
-  var stubShown = false;
-  function goToStub(outcome){
-    if(!stubShown){
-      stubShown = true;
-      track(evEnd(outcome));   // просмотр финальной страницы — только при первом рендере
-    }
+  // Анти-повтор: после прохождения флоу — блокировка.
+  // localStorage изолирован по origin, а каждый вариант — свой домен (8093-N.github.io),
+  // плюс ключ содержит VAR → прохождение одного варианта НЕ лочит другие.
+  // ?test=1 полностью отключает блокировку (для ваших тестов).
+  var LOCK_KEY = 'alfa8093_done_var' + VAR;
+  var TEST_MODE = /[?&]test=1(&|$)/.test(location.search);
+  function isLocked(){
+    if(TEST_MODE) return false;
+    try{ return localStorage.getItem(LOCK_KEY) === '1'; }catch(e){ return false; }
+  }
+  function setLock(){
+    if(TEST_MODE) return;
+    try{ localStorage.setItem(LOCK_KEY, '1'); }catch(e){}
+  }
+
+  function showStubScreen(){
     document.body.classList.add('show-stub');
     document.getElementById('stub').setAttribute('aria-hidden','false');
     trapBack();
     window.scrollTo(0,0);
   }
-
-  // "Повторить" — имитация загрузки, затем снова ошибка (в чат не возвращает, событий не шлёт)
-  function bindRetry(){
-    var r = document.getElementById('retryBtn');
-    if(r) r.addEventListener('click', function(){
-      stubBody.innerHTML = '<div class="spinner"></div>';
-      setTimeout(function(){ stubBody.innerHTML = stubHTML; bindRetry(); }, 1500);
-    });
+  var stubShown = false;
+  function goToStub(outcome){
+    if(!stubShown){
+      stubShown = true;
+      setLock();               // запрещаем повторное прохождение (кроме ?test=1)
+      track(evEnd(outcome));    // просмотр финальной страницы — только при первом рендере
+    }
+    showStubScreen();
   }
-  bindRetry();
 
   // ====== intro ("сообщения только что пришли") ======
   var MSG1 = "Привет! Это ИИ-ассистент. Я здесь, чтобы ответить на вопросы об услугах и продуктах Альфа-Банка.";
@@ -560,9 +567,13 @@
   document.getElementById('backBtn').addEventListener('click', function(e){ e.preventDefault(); /* decorative */ });
   input.addEventListener('focus', function(){ setTimeout(scrollDown, 250); });
 
-  trapBack();                              // блокируем "назад" на весь эксперимент
-  track('8093_page_view_landing_var' + VAR); // просмотр экрана предложения — при первом рендере
-  playIntro();
+  trapBack();                              // блокируем "назад"
+  if(isLocked()){
+    showStubScreen();                      // уже проходил флоу — сразу заглушка, без событий и записи
+  } else {
+    track('8093_page_view_landing_var' + VAR); // просмотр экрана предложения — при первом рендере
+    playIntro();
+  }
 })();
 </script>
 </body>
